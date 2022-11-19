@@ -1,0 +1,35 @@
+\usetheme{metropolis}
+\usepackage[T1]{fontenc}
+\let\temp\rmdefault
+\usepackage{mathpazo}
+\let\rmdefault\temp
+\usepackage{textcomp}
+\usefonttheme{professionalfonts}
+\usefonttheme[onlymath]{serif}
+
+\usepackage{amsmath}
+\usepackage[style=ieee,backend=bibtex]{biblatex}
+\setbeamertemplate{bibliography item}{\insertbiblabel}
+
+\renewcommand{\today}{\number\year .\number\month .\number\day}
+
+\renewcommand{\figurename}{Figure}
+\renewcommand{\tablename}{Table}
+
+\usepackage{graphics}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\usetikzlibrary{arrows.meta}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{mathtools}
+
+\newcommand{\support}{\mathrm{supp}}
+\newcommand{\size}[1]{{\left|{#1}\right|}}
+\newcommand{\set}[1]{\{#1\}}
+
+% Chinese
+
+\usepackage{xeCJK}
