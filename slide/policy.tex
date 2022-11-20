@@ -50,7 +50,13 @@
     对于局部决策，我们参考~\cite*{chaplot2020object}，采用Far Marching Method：
     \begin{itemize}
         \item 利用语义地图中的obstacle channel即可
-        \item 
+        \item 和Dijkstra算法类似，通过求解Eikonal方程来更新最短路径：
+        $$
+        \begin{aligned}
+            \mid\nabla u(x)\mid&=1/f(x)&\text{for }&x\in\Omega\\
+            u(x)&=0&\text{for }&x\in\partial\Omega
+        \end{aligned}
+        $$
     \end{itemize}
 \end{frame}
 
