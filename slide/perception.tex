@@ -36,8 +36,9 @@
     }    
 \end{frame}
 
-\begin{frame}{语义制图模型}
-    TODO: 图
+\begin{frame}{语义制图模型\cite{objnav}}
+    \centering
+    \includegraphics[width=11cm]{assets/semmapping.png}
     \begin{itemize}
         \item 单独训练
         \item 预训练+调优：CMX \cite{cmx}
@@ -55,7 +56,15 @@
 \end{frame}
 
 \begin{frame}{预测模型}
-    TODO: 图
+    \centering
+    \includegraphics[width=8cm]{assets/predmapping.png}
+    \begin{itemize}
+        \item 真相的获取：
+            \begin{itemize}
+                \item 模拟器直接提供
+                \item 提前在环境中绘制全部语义地图
+            \end{itemize}
+    \end{itemize}
     \note{
         对于预测模型，我们从模拟器获得真相的全局语义地图作为监督信息，鼓励模型输出的预测结果贴近真实。
         \begin{itemize}
