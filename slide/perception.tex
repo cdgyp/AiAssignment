@@ -25,7 +25,7 @@
 
 \begin{frame}{感知部分总体结构}
     \centering
-    \includegraphics[width=10cm]{assets/perception.png}
+    \includegraphics[width=10cm]{assets/perception-example.png}
     \note{
         \begin{itemize}
             \item 感知部分总体上分为两个部分：语义制图和预测模型
@@ -48,7 +48,7 @@
         得到的语义分割会被投射到深度信息给出的点云中，从而确定每一点所属物体的语义。最后从上方观察点云、将语义分布投射到地图上得到局部的语义地图。
 
         \begin{itemize}
-            \item 注意此模型的输入与智能体的行动方式无关，因为它只关心视野中的情况。因此这个模型可以脱离智能体单独训练，也可以采用预训练的大型模型微调，例如一些新近提出的用 RGB-D 信息生成三维 semantic mapping 的模型加上简单的表示转换来实现。
+            \item 注意此模型的输入与智能体的行动方式无关，因为它只关心视野中的情况。因此这个模型可以脱离智能体单独训练，也可以采用预训练的大型模型微调。
             \item 我们计划使用结合能够利用 RGB-D 多模态数据的语义分割模型 CMX 在场景下 fine-tune 作为语义制图模型。能够结合 RGB 信息和深度信息进行语义分割也是我们和我们所参考的工作的区别之一。
         \end{itemize}
     }
