@@ -277,3 +277,7 @@ TSWLatexianTemp*
 
 
 
+# trained models
+
+models/trained_models/***/*.*
+!models/trained_models/***/.git*
