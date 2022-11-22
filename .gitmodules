@@ -1,0 +1,3 @@
+[submodule "models/perception/prediction/Palette-Image-to-Image-Diffusion-Models"]
+	path = models/perception/prediction/Palette-Image-to-Image-Diffusion-Models
+	url = git@github.com:Janspiry/Palette-Image-to-Image-Diffusion-Models.git
