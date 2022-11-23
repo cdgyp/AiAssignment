@@ -278,6 +278,13 @@ TSWLatexianTemp*
 
 
 # trained models
-
 models/trained_models/***/*.*
 !models/trained_models/***/.git*
+
+# data sets
+data/***/*.*
+!data/***/.git*
+
+# python
+
+***/__pycache__/***/*.*
