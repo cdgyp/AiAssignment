@@ -288,3 +288,9 @@ data/***/*.*
 # python
 
 ***/__pycache__/***/*.*
+
+# palette experiments
+palette_experiments/***/*.*
+palette_experiments/***/*
+***/palette_experiments/***/*.*
+***/palette_experiments/***/*
