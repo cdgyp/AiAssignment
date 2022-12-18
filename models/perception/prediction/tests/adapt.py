@@ -1,23 +1,24 @@
-from ..palette import prepare
-import torch
-
 if __name__ == '__main__':
+    import torch
+    torch.multiprocessing.set_start_method('spawn')
+    from ..palette import prepare
 
-    model, ds_train, ds_val = prepare(
-        class_number=3,
+    model, ds = prepare(
+        class_number=48,
         base_config='models/perception/prediction/palette/config/uncropping_places2.json',
-        batch_size=16,
-        epoch_per_train=5,
-        iter_per_train=5e3,
+        batch_size=2,
+        epoch_per_train=1e3,
+        iter_per_train=1e8,
         gpu_ids=[0],
         phase='train'
     )
 
     print("initialized")
+    print(ds.get_ground_truth_identifiers())
 
     model.train()
 
-    image = torch.rand((1, 4, 256, 256)).to('cuda')
-    res = model(image)
+    # image = torch.rand((1, 1409, 256, 256)).to('cuda')
+    # res = model(image)
 
 

@@ -284,6 +284,8 @@ models/trained_models/***/*.*
 # data sets
 data/***/*.*
 !data/***/.git*
+!data/***/*.py
+!data/***/*.ipynb
 
 # python
 
