@@ -1,9 +1,10 @@
 import torch
-import sys
-sys.path.append('../../..')
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../'))
 from models.common import device
 import habitat_sim
 from matplotlib import pyplot as plt
+import json
 
 def assert_size(tensor: torch.Tensor, shape, dim=None):
     shape = torch.Size(shape)
@@ -156,96 +157,168 @@ def rotate_point_cloud(point_cloud: tuple, rotation:torch.Tensor=torch.tensor(0)
         return Y, X
 
 
-class ClassReducer:
+class ClassManager:
     """处理 habitat_sim 使用过程中的类别问题
 
-    使用 habitat_sim 过程中，会遇到两种问题：
+    使用 habitat_sim 过程中，会遇到三种问题：
 
+    0. 不同场景间的类别编号不一致
     1. 语义传感器给出的分割是物体级别的分割
-    2. 潜在的类别过多，但实际出现的类别较少
+    2. 全局的潜在的类别过多，但实际出现的类别较少
 
-    使用 ClassReducer 可以
+    使用 ClassManager 可以
 
-    1. 使用 `.instance_to_category()` 将物体分割粗化成语义分割
+    1. 使用 `.instance_to_global()` 将物体分割粗化成语义分割，该语义分割使用在所有场景中一致的类编号
     2. 使用 `.reduce()` 将以全部类别标记的语义分割转化成以实际出现类别标记的语义分割
     3. 使用 `.recover()` 和 `.recover_channel()` 将以实际出现类别标记标记的语义分割还原成以全部类别标记的语义分割。其中 `.recover_channel()` 处理以通道方式存储不同类别出现情况的地图
+
+    使用 `.save()` 和 `.load()`：使用 `.load()` 加载来自 `.save()` 的文件后，无法使用 `.instance_to_global()`
+    
     """
-    def __init__(self, matrix: torch.Tensor, class_number=None, instance_to_categories=False) -> None:
-        """初始化 ClassReducer
-
-        :param torch.Tensor matrix: 一些真实出现的类别
-        :param int class_number: 类别总数, defaults to None：根据 `matrix` 自动获取
-        :param bool instance_to_categories: 如果为 `True`，表示可以仰赖 `matrix[i]` 给出第 `i` 个物体的类别编号, defaults to False
+    def __init__(self, instance_id: list, instance_class_names: list, instance_class_id: list, path_to_classes_json: str, device=device, instance_availiable=True) -> None:
+        """初始化 ClassManager
         """
-        matrix = matrix.type(torch.long).to(device).flatten()
-        self.reduced_to_original= matrix.unique(sorted=True, return_inverse=False, return_counts=False)
+        with open(path_to_classes_json, 'r') as fp:
+            classes_json = json.load(fp)
+        assert isinstance(classes_json, dict)
 
-        if class_number is None:
-            class_number = self.reduced_to_original.max().item() + 1
-        self.class_number = class_number
+        self.class_number = classes_json['class_number']
+        self.instance_availiable = instance_availiable
+        class_name_to_class_id = classes_json['class_id']
 
-        self._instance_to_categories = None
-        if instance_to_categories:
-            self._instance_to_categories = matrix
+        instance_number = max(instance_id) + 100
+        if isinstance(instance_number, torch.Tensor):
+            instance_number = instance_number.item()
+        instance_to_global = torch.full([instance_number], class_name_to_class_id['Unknown'])
+        for i in range(len(instance_class_id)):
+            instance_to_global[instance_id[i]] = class_name_to_class_id[instance_class_names[i]]
+        assert (instance_to_global == -1).sum() == 0
+        self._instance_to_global = instance_to_global.type(torch.long).to(device)
 
-
-        self.original_to_reduced = torch.full((class_number, ), fill_value=-class_number-1).to(device).type(torch.long)
-        self.original_to_reduced[self.reduced_to_original.reshape(-1)] = torch.arange(0, len(self.reduced_to_original)).to(device).type(torch.long)
+        local_class_number = max(instance_class_id) + 1
+        if isinstance(local_class_number, torch.Tensor):
+            local_class_number = local_class_number.item()
+        self.local_to_global = torch.full([local_class_number], -1)
+        for i in range(len(instance_class_id)):
+            assert instance_class_id[i] < local_class_number
+            self.local_to_global[instance_class_id[i]] = self._instance_to_global[instance_id[i]]
+        assert (self.local_to_global == -1).sum() == 0
+        self.local_to_global = self.local_to_global.type(torch.long).to(device)
         
-        for i in range(len(self.reduced_to_original)):
-            assert self.original_to_reduced[self.reduced_to_original[i]] == i, (i, self.reduced_to_original[i].item(), self.original_to_reduced[self.reduced_to_original[i]].item())
-        print("reduced number of classes:", len(self.reduced_to_original))
-    def from_sim(sim: habitat_sim.Simulator):
+        self.global_to_local = torch.full((self.class_number, ), fill_value=-self.class_number-1).to(device).type(torch.long)
+        self.global_to_local[self.local_to_global.reshape(-1)] = torch.arange(0, len(self.local_to_global)).to(device).type(torch.long)
+        
+        for i in range(len(self.local_to_global)):
+            assert self.global_to_local[self.local_to_global[i]] == i, (i, self.local_to_global[i].item(), self.global_to_local[self.local_to_global[i]].item())
+        # print("reduced number of classes:", len(self.local_to_global), 'total class number:', self.class_number)
+
+    def from_sim(sim: habitat_sim.Simulator, path_to_classes_json: str, device=device):
         """直接根据模拟器生成 ClassReducer
 
         :param habitat_sim.Simulator sim: 正在运行的模拟器
+        :param str path_to_classes_json: 当前数据集的 `classes.json` 的位置
         :return ClassReducer:
         """
-        categories = torch.tensor([obj.category.index() for obj in sim.semantic_scene.objects]).to(device)
-        reducer = ClassReducer(categories, instance_to_categories=True)
-        assert (reducer.recover(reducer.reduce(categories)) != categories).sum() == 0
+        instance_ids = torch.Tensor([int(obj.id.split("_")[-1]) for obj in sim.semantic_scene.objects]).to(device).type(torch.long)
+        class_names = [obj.category.name() for obj in sim.semantic_scene.objects]
+        class_ids = torch.Tensor([obj.category.index() for obj in sim.semantic_scene.objects]).to(device).type(torch.long)
+        reducer = ClassManager(instance_ids, class_names, class_ids, path_to_classes_json, device=device)
+        assert (reducer.reduce(reducer.recover(class_ids)) != class_ids).sum() == 0
+        # for i, obj in enumerate(sim.semantic_scene.objects):
+            # assert obj.semantic_id < 457
+            # assert int(obj.id.split("_")[-1]) < 457
+            # assert i < 457
+        print(len(class_names), "objects,", reducer.class_number, "classes,", len(reducer.local_to_global), "local classes")
         return reducer
-    def get_reduced_class_number(self):
-        return len(self.reduced_to_original)
+    
+    def get_local_class_number(self):
+        return len(self.local_to_global)
     def save(self, path):
-        torch.save(self.reduced_to_original, path)
-    def load(path, class_number=None):
-        matrix = torch.load(path)
-        return ClassReducer(matrix, class_number)
+        torch.save(self.local_to_global, path)
+
+    def load(path: str, path_to_classes_json: str, device=device):
+        local_to_global = torch.load(path)
+        with open(path_to_classes_json, 'r') as fp:
+            class_name_to_id:dict = json.load(fp)['class_id']
+        class_id_to_name = {id: name for name, id in class_name_to_id.items()}
+        names = [class_id_to_name[id.item()] for id in local_to_global]
+        local_ids = torch.arange(0, len(names)).to(device)
+
+        res = ClassManager(local_ids, names, local_ids, path_to_classes_json, device=device, instance_availiable=False)
+
+        assert (res.reduce(res.recover(local_ids)) != local_ids).sum() == 0
+        return res
     
     def _map(self, matrix: torch.Tensor, mapping: torch.Tensor):
         if not isinstance(matrix, torch.Tensor):
             matrix = torch.tensor(matrix).to(device)
         matrix = matrix.type(torch.long).to(device)
         assert (matrix < 0).sum() == 0
-        assert matrix.max().item() < len(mapping), (matrix.max().item(), len(mapping))
+        assert matrix.max().item() < len(mapping), (len(mapping), [value.item() for value in matrix.flatten() if value.item() >= len(mapping)])
         res = mapping[matrix.reshape(-1)].reshape(matrix.shape)
-        assert (res < 0).sum() == 0
         return res
-    def instance_to_category(self, instances: torch.Tensor):
-        return self._map(instances, self._instance_to_categories)
+    
+    def instance_to_global(self, instances: torch.Tensor):
+        assert self.instance_availiable
+        return self._map(instances, self._instance_to_global)
     def reduce(self, original: torch.Tensor):
-        return self._map(original, self.original_to_reduced)
+        return self._map(original, self.global_to_local)
     def recover(self, reduced: torch.Tensor):
-        return self._map(reduced, self.reduced_to_original)
-    def recover_channel(self, reduced, class_number=None, default_value=0):
-        if class_number is None:
-            class_number = self.class_number
-        res = torch.full(([class_number] + list(reduced.shape[1:])), fill_value=default_value)
-        res[self.reduced_to_original] = reduced
+        return self._map(reduced, self.local_to_global)
+    def reduce_channel(self, original: torch.Tensor, dim=0):
+        assert len(original.shape) > 0
+        dim = (len(original.shape) + dim) % len(original.shape)
+        if dim == 0:
+            return original[self.local_to_global]
+        elif dim == 1:
+            return original[:, self.local_to_global]
+        else:
+            raise NotImplementedError
+        
+    def recover_channel(self, reduced, default_value=0):
+        class_number = self.class_number
+        res = torch.full(([class_number] + list(reduced.shape[1:])), fill_value=default_value).to(device)
+        res[self.local_to_global] = reduced.to(device)
         
         return res
+
+def get_class_number(path: str):
+    res = 0
+    if os.path.isfile(path):
+        if '.reducer' in path:
+            reducer = torch.load(path)
+            res = max(res, reducer.max().item() + 1)
+    else: 
+        assert os.path.isdir(path)
+        for d in os.listdir(path):
+            res = max(get_class_number(os.path.join(path, d)), res)
+    return res
+
+def fold_channel(img: torch.Tensor, out_channel: int, reduction='mean'):
+    
+    remain = img.shape[0] % out_channel
+    img_main, img_remain = img[:img.shape[0] - remain], img[img.shape[0] - remain:]
+    try:
+        fold = img.shape[0] // out_channel
+        img_main = img_main.reshape([fold, out_channel] + list(img.shape[1:]))
+        if reduction == 'max':
+            img = img_main.max(dim=0)[0]
+            img[:remain] = torch.max(img[:remain], img_remain)
+        elif reduction == 'mean':
+            img = img_main.mean(dim=0)
+            img[:remain] = (img[:remain] * fold + img_remain) / (fold + 1)
+
+        img = img.clamp(max=1)
+    except RuntimeError:
+        assert img_main.shape[0] == 0
+        img = torch.zeros([out_channel] + list(img.shape[1:]))
+        img[:remain] = img_remain
+    return img
 
 def display_semantic_map(topdown: torch.Tensor):
     from habitat_sim.utils.common import d3_40_colors_rgb
     with torch.no_grad():
-        remain = topdown.shape[0] % 40
-        topdown_main, topdown_remain = topdown[:topdown.shape[0] - remain], topdown[topdown.shape[0] - remain:]
-        topdown_main = topdown_main.reshape([topdown.shape[0] // 40, 40] + list(topdown.shape[1:]))
-        topdown = topdown_main.max(dim=0)[0]
-        topdown[:remain] += topdown_remain
-        topdown = topdown.clamp(max=1)
-
+        topdown = fold_channel(topdown, 40, reduction='max')
         topdown = (topdown * torch.rand(topdown.shape).to(device)).argmax(axis=0)
         palette = torch.tensor(d3_40_colors_rgb).to(device)
         topdown = palette[(topdown % 40).reshape(-1)].reshape(list(topdown.shape) + [3])
