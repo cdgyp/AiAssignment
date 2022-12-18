@@ -149,7 +149,13 @@ def make_samples(settings: dict, for_each_dir=lambda sim, scene_dir, scene_name:
         if not found_semantic:
             continue
         dirs.append(dir)
-    for dir in tqdm(dirs):
+    resume = 0
+    if 'resume' in settings:
+        resume = settings['resume']
+    for i, dir in enumerate(tqdm(dirs)):
         print(dir)
+        if i < resume:
+            print("done")
+            continue
         with fulfill(settings['dataset'], dir):
             _for_each_dir(for_each_dir, settings, dir)
