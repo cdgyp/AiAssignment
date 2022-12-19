@@ -157,7 +157,7 @@ def rotate_point_cloud(point_cloud: tuple, rotation:torch.Tensor=torch.tensor(0)
         return Y, X
 
 
-class ClassManager:
+class ClassManager(torch.nn.Module):
     """处理 habitat_sim 使用过程中的类别问题
 
     使用 habitat_sim 过程中，会遇到三种问题：
@@ -175,12 +175,18 @@ class ClassManager:
     使用 `.save()` 和 `.load()`：使用 `.load()` 加载来自 `.save()` 的文件后，无法使用 `.instance_to_global()`
     
     """
+    classes_json = None
+    path_to_classes_json = None
     def __init__(self, instance_id: list, instance_class_names: list, instance_class_id: list, path_to_classes_json: str, device=device, instance_availiable=True) -> None:
         """初始化 ClassManager
         """
-        with open(path_to_classes_json, 'r') as fp:
-            classes_json = json.load(fp)
-        assert isinstance(classes_json, dict)
+        super().__init__()
+        if ClassManager.classes_json is None or ClassManager.path_to_classes_json != path_to_classes_json:
+            ClassManager.path_to_classes_json = path_to_classes_json
+            with open(path_to_classes_json, 'r') as fp:
+                ClassManager.classes_json = json.load(fp)
+            assert isinstance(ClassManager.classes_json, dict)
+        classes_json = ClassManager.classes_json
 
         self.class_number = classes_json['class_number']
         self.instance_availiable = instance_availiable
