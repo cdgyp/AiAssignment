@@ -300,8 +300,14 @@ def get_class_number(path: str):
             res = max(get_class_number(os.path.join(path, d)), res)
     return res
 
-def fold_channel(img: torch.Tensor, out_channel: int, reduction='mean'):
+def fold_channel(img: torch.Tensor, out_channel: int, reduction='mean', red_goal=False):
     
+    if red_goal:
+        from ..common  import goal_categories
+        goals = fold_channel(img[:len(goal_categories)], 1, reduction=reduction, red_goal=False)
+        others = fold_channel(img[len(goal_categories):], 2, reduction=reduction, red_goal=False)
+        # mask = ~(goals > 0.8)
+        return torch.cat([goals, others], dim=-3)
     remain = img.shape[0] % out_channel
     img_main, img_remain = img[:img.shape[0] - remain], img[img.shape[0] - remain:]
     try:

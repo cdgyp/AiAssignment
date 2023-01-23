@@ -4,11 +4,11 @@ if __name__ == '__main__':
     from ..palette import prepare
 
     model, ds = prepare(
-        class_number=48,
+        class_number=10,
         base_config='models/perception/prediction/palette/config/uncropping_places2.json',
-        batch_size=2,
-        epoch_per_train=1e3,
-        iter_per_train=1e8,
+        batch_size=3,
+        epoch_per_train=1e4,
+        iter_per_train=1e9,
         gpu_ids=[0],
         phase='train'
     )

@@ -134,8 +134,8 @@ def _for_each_dir(for_each_dir, settings, scene_dir, scene_name=None):
 
 def make_samples(settings: dict, for_each_dir=lambda sim, scene_dir, scene_name: None):
     # 无论 main.tar 是否解压，semantic.tar 都会给出有语义标记的目录
-    os.environ["MAGNUM_LOG"] = "quiet"
-    os.environ["HABITAT_SIM_LOG"] = "quiet"
+    from ...models.common import press_habitat_log
+    press_habitat_log()
     dirs = []
     for dir in os.listdir(settings['dataset']):
         if not os.path.isdir(os.path.join(settings['dataset'], dir)):
