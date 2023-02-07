@@ -5,6 +5,7 @@ from models.common import device
 import habitat_sim
 from matplotlib import pyplot as plt
 import json
+from tensorboard import program as tb_program
 
 def assert_size(tensor: torch.Tensor, shape, dim=None):
     shape = torch.Size(shape)
@@ -327,6 +328,32 @@ def fold_channel(img: torch.Tensor, out_channel: int, reduction='mean', red_goal
         img[:remain] = img_remain
     return img
 
+def display_channels(img: torch.Tensor):
+    def _display_channels(img: torch.Tensor):
+        fold = img.shape[0]  // 3
+        remain = img.shape[0] - fold * 3
+        img_main, img_remain = img[:img.shape[0] - remain], img[img.shape[0] - remain:]
+        img_list = []
+        if fold > 0:
+            img_main = img_main.reshape(fold, 3, img.shape[-2], img.shape[-1]).transpose(0, 1).reshape(3, fold * img.shape[-2], img.shape[-1])
+            img_list.append(img_main)
+        if remain > 0:
+            assert remain < 3
+            padding = torch.zeros([3 - remain, img_remain.shape[-2], img_remain.shape[-1]]).to(img_remain.device)
+            img_remain = torch.cat([img_remain, padding], dim=0)
+            img_list.append(img_remain)
+        return torch.cat(img_list, dim=-2)
+
+    from ..common  import goal_categories
+    return torch.cat(
+        [
+            fold_channel(img, 3, 'mean', True),
+            _display_channels(img[:len(goal_categories)]), 
+            _display_channels(img[len(goal_categories):])
+        ],
+        dim=-2
+    )
+
 def display_semantic_map(topdown: torch.Tensor):
     from habitat_sim.utils.common import d3_40_colors_rgb
     with torch.no_grad():
@@ -337,3 +364,21 @@ def display_semantic_map(topdown: torch.Tensor):
 
         plt.imshow(topdown.cpu().numpy())
         plt.show()
+
+
+_log_dir = None
+
+def set_log_dir(log_dir: str):
+    global _log_dir
+    _log_dir = log_dir
+def get_log_dir():
+    return _log_dir
+    
+def open_tensorboard(log_dir:str=get_log_dir()):
+    assert log_dir is not None
+    tb = tb_program.TensorBoard()
+    tb.configure(argv=[None, '--logdir', log_dir, '--bind_all'])
+    url = tb.launch()
+    print(f'tensorboard at {url}')
+    return url
+
