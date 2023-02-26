@@ -1,3 +1,6 @@
 [submodule "models/perception/prediction/palette"]
 	path = models/perception/prediction/palette
 	url = https://github.com/cdgyp/Palette-Image-to-Image-Diffusion-Models.git
+[submodule "models/Object-Goal-Navigation"]
+	path = models/navigation
+	url = https://github.com/devendrachaplot/Object-Goal-Navigation.git
