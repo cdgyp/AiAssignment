@@ -5,6 +5,10 @@ from models.common import device
 import habitat_sim
 from matplotlib import pyplot as plt
 import json
+
+from models.navigation.utils.integration import visualize as _gibson_visualize
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 from tensorboard import program as tb_program
 
 def assert_size(tensor: torch.Tensor, shape, dim=None):
@@ -328,7 +332,18 @@ def fold_channel(img: torch.Tensor, out_channel: int, reduction='mean', red_goal
         img[:remain] = img_remain
     return img
 
-def display_channels(img: torch.Tensor):
+
+def gibson_visualize(img: torch.Tensor, first_image:torch.Tensor=None):
+    vis = torch.tensor(_gibson_visualize(torch.cat([torch.zeros_like(img[[0]]), img])), device=img.device).permute(2, 0, 1)[[2, 1, 0]].flip(dims=[1]) / 255
+    return vis if first_image is None else torch.cat(
+            [
+                first_image.to(vis.device),
+                vis
+            ],
+            dim=-2
+        )
+
+def display_channels(img: torch.Tensor, first_image=None):
     def _display_channels(img: torch.Tensor):
         fold = img.shape[0]  // 3
         remain = img.shape[0] - fold * 3
@@ -347,7 +362,7 @@ def display_channels(img: torch.Tensor):
     from ..common  import goal_categories
     return torch.cat(
         [
-            fold_channel(img, 3, 'mean', True),
+            first_image.to(img.device) if first_image is not None else fold_channel(img, 3, 'mean', True),
             _display_channels(img[:len(goal_categories)]), 
             _display_channels(img[len(goal_categories):])
         ],

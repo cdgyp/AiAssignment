@@ -283,6 +283,7 @@ models/trained_models/***/*.*
 
 # data sets
 data/***/*.*
+data/***/*
 !data/***/.git*
 !data/***/*.py
 !data/***/*.ipynb
@@ -296,3 +297,7 @@ palette_experiments/***/*.*
 palette_experiments/***/*
 ***/palette_experiments/***/*.*
 ***/palette_experiments/***/*
+
+minitest.ipynb
+***/*.code-workspace
+night.sh
