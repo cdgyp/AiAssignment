@@ -302,3 +302,4 @@ minitest.ipynb
 ***/*.code-workspace
 night.sh
 tmp/***/*.*
+***/*.pth
