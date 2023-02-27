@@ -301,3 +301,4 @@ palette_experiments/***/*
 minitest.ipynb
 ***/*.code-workspace
 night.sh
+tmp/***/*.*

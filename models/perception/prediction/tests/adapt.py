@@ -2,6 +2,7 @@ import os
 import torch
 
 if __name__ == '__main__':
+    torch.multiprocessing.set_start_method('spawn')
     os.environ['CUDA_DEVICE_ORDER']='PCI_BUS_ID'
     os.environ['CUDA_VISIBLE_DEVICES']='2'
     from ..palette import prepare
