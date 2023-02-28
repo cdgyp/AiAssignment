@@ -10,7 +10,7 @@ if __name__ == '__main__':
     torch.cuda.set_device(0)
     model, ds = prepare(
         class_number=17,
-        base_config='models/perception/prediction/palette/config/simple_uncropping.json',
+        base_config='models/perception/prediction/palette/config/simple_uncropping2.json',
         batch_size=4,
         epoch_per_train=1e4,
         iter_per_train=1e9,
