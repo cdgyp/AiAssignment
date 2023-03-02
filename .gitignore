@@ -303,3 +303,4 @@ minitest.ipynb
 night.sh
 tmp/***/*.*
 ***/*.pth
+trained_models/***
